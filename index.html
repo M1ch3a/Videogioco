@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script src="https://unpkg.com/kaplay@3001/dist/kaplay.js"></script>
+
+<script>
+
+kaplay({
+    background: [141, 183, 255],
+});
+
+onUpdate(() => setCursor("default"));
+
+function addButton(
+    txt = "start game",
+    p = vec2(200, 100),
+    f = () => debug.log("hello"),
+) {
+    const btn = add([
+        rect(240, 80, { radius: 8 }),
+        pos(p),
+        area(),
+        scale(1),
+        anchor("center"),
+        outline(4),
+        color(255, 255, 255),
+    ]);
+
+    btn.add([
+        text(txt),
+        anchor("center"),
+        color(0, 0, 0),
+    ]);
+
+    btn.onHoverUpdate(() => {
+        const t = time() * 10;
+        btn.color = hsl2rgb((t / 10) % 1, 0.6, 0.7);
+        btn.scale = vec2(1.2);
+        setCursor("pointer");
+    });
+
+    btn.onHoverEnd(() => {
+        btn.scale = vec2(1);
+        btn.color = rgb();
+    });
+
+    btn.onClick(f);
+
+    return btn;
+}
+
+const centerX = width() / 2;
+const centerY = height() / 2;
+
+scene("menu", () => {
+
+    addButton("Start", vec2(centerX, centerY - 60), () => {
+        go("game");
+    });
+
+    addButton("Quit", vec2(centerX, centerY + 60), () => {
+        const gameCanvas = document.querySelector("canvas");
+        if (gameCanvas) {
+            gameCanvas.remove();
+        }
+    });
+});
+
+
+loadSprite("Mario", "img/Mario.png");
+loadSprite("Salto", "img/Mario_salto.png");
+loadSprite("spike", "img/spike.png");
+loadSprite("grass", "img/grass.png");
+loadSprite("portal", "img/portal.png");
+loadSprite("coin", "img/coin.png");
+loadSound("coin", "sound/coin.mp3");
+loadSound("portal", "sound/portal.mp3");
+loadSound("hit", "sound/hit.mp3");
+loadSound("win", "sound/win.mp3");
+loadSound("jump", "sound/jump.mp3");
+
+setGravity(3200);
+
+const JUMP_FORCE = 1320;
+const MOVE_SPEED = 480;
+const FALL_DEATH = 2400;
+
+const LEVELS = [
+    [
+        "            ",
+        "            ",
+        "      $ $   ",
+        "      ===   ",
+        "            ",
+        "   ^^      @",
+        "======---===",
+    ],
+    [
+        "                            ",
+        "                            ",
+        "                            ",
+        "                            ",
+        "    €        $$$            ",
+        "       ^^          $$€$$   @",
+        "===========--===--=======--=",
+    ],
+    [
+        "                                ",
+        "                                ",
+        "                                ",
+        "                                ",
+        "  ^^^^  ^^^^  ^^^^  ^^^^  ^^^^@ ",
+        "================================",
+    ],
+    [
+        "                             ",
+        "                             ",
+        "                             ",
+        "                             ",
+        "       $$     €€€            ",
+        "   €$€    ^^       ^^$€$$   @",
+        "=======--==============--=--=",
+    ],
+    [
+        "                             ",
+        "                             ",
+        "                             ",
+        "                             ",
+        "      $       €              ",
+        "   ^^   ^^a^^   aa^aa    €  g",
+        "== ===-===============--=====",
+        "                             ",
+        "                             ",
+        "                             ",
+        "                             ",
+        "                             ",
+        "                             ",
+        "           $$$               ",
+        "                            @",
+        "===========---===============",
+    ]
+];
+
+const levelConf = {
+    tileWidth: 64,
+    tileHeight: 64,
+    tiles: {
+        "=": () => [
+            sprite("grass"),
+            area(),
+            body({ isStatic: true }),
+            anchor("bot"),
+            offscreen({ hide: true }),
+            "platform",
+        ],
+        "-": () => [
+            sprite("grass"),
+            body({ isStatic: true }),
+            offscreen({ hide: false }),
+            anchor("bot"),
+        ],
+        "$": () => [
+            sprite("coin"),
+            area(),
+            pos(0, -9),
+            anchor("bot"),
+            offscreen({ hide: true }),
+            "coin",
+        ],
+        "€": () => [
+            sprite("coin"),
+            area(),
+            pos(0, -9),
+            anchor("bot"),
+            offscreen({ hide: true }),
+            "danger",
+        ],
+        "^": () => [
+            sprite("spike"),
+            area(),
+            body({ isStatic: true }),
+            anchor("bot"),
+            offscreen({ hide: true }),
+            "danger",
+        ],
+        "a": () => [
+            sprite("spike"),
+            area(),
+            body({ isStatic: true }),
+            anchor("bot"),
+            offscreen({ hide: false }),
+        ],
+        "@": () => [
+            sprite("portal"),
+            area({ scale: 0.5 }),
+            anchor("bot"),
+            pos(0, -12),
+            offscreen({ hide: true }),
+            "portal",
+        ],
+        "g": () => [
+            sprite("portal"),
+            area({ scale: 0.5 }),
+            anchor("bot"),
+            pos(0, -12),
+            offscreen({ hide: true }),
+            "danger"
+        ],
+    },
+};
+
+scene("game", ({ levelId, coins } = { levelId: 0, coins: 0 }) => {
+
+    const level = addLevel(LEVELS[levelId ?? 0], levelConf);
+
+    const player = add([
+        sprite("Mario"),
+        pos(0, 0),
+        area(),
+        scale(1.3),
+        body(),
+        anchor("bot"),
+    ]);
+
+    player.onUpdate(() => {
+
+        setCamPos(player.pos);
+
+        if (!player.isGrounded()) {
+            player.use(sprite("Salto"));
+        } else {
+            player.use(sprite("Mario"));
+        }
+
+        if (player.pos.y >= FALL_DEATH) {
+            go("lose");
+        }
+    });
+
+    player.onCollide("portal", () => {
+        play("portal");
+        if (levelId + 1 < LEVELS.length) {
+            go("game", {
+                levelId: levelId + 1,
+                coins: coins,
+            });
+        }
+        else {
+            go("win");
+        }
+    });
+
+    let hasApple = false;
+    let coinPitch = 0;
+
+    onUpdate(() => {
+        if (coinPitch > 0) {
+            coinPitch = Math.max(0, coinPitch - dt() * 100);
+        }
+    });
+
+    player.onCollide("coin", (c) => {
+        destroy(c);
+        play("coin", {
+            detune: coinPitch,
+        });
+        coinPitch += 100;
+        coins += 1;
+        coinsLabel.text = coins;
+    });
+
+    player.onCollide("danger", () => {
+        go("lose");
+        play("hit");
+    });
+
+    const coinsLabel = add([
+        text(coins),
+        pos(24, 24),
+        fixed(),
+    ]);
+
+    function jump() {
+        if (player.isGrounded()) {
+            player.jump(JUMP_FORCE);
+            play("jump")
+        }
+    }
+
+    onKeyPress("w", jump);
+
+    onKeyDown("a", () => {
+        player.move(-MOVE_SPEED, 0);
+    });
+
+    onKeyDown("d", () => {
+        player.move(MOVE_SPEED, 0);
+    });
+
+    onKeyPress("f", () => {
+        setFullscreen(!isFullscreen());
+    });
+});
+
+scene("lose", () => {
+    add([
+        text("You Lose"),
+    ]);
+
+    addButton("Restart", vec2(centerX, centerY), () => {
+        go("game");
+    });
+});
+
+scene("win", () => {
+    add([
+        text("You Win"),
+    ]);
+    
+    addButton("Go menu", vec2(centerX, centerY), () => {
+        go("menu");
+    });
+    play("win")
+});
+
+go("menu");
+
+
+</script>
+</body>
+</html>
