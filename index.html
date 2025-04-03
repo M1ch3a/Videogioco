@@ -62,13 +62,6 @@ scene("menu", () => {
     addButton("Start", vec2(centerX, centerY - 60), () => {
         go("game");
     });
-
-    addButton("Quit", vec2(centerX, centerY + 60), () => {
-        const gameCanvas = document.querySelector("canvas");
-        if (gameCanvas) {
-            gameCanvas.remove();
-        }
-    });
 });
 
 
@@ -293,6 +286,7 @@ scene("game", ({ levelId, coins } = { levelId: 0, coins: 0 }) => {
     }
 
     onKeyPress("w", jump);
+    onKeyPress("space", jump);
 
     onKeyDown("a", () => {
         player.move(-MOVE_SPEED, 0);
@@ -302,9 +296,6 @@ scene("game", ({ levelId, coins } = { levelId: 0, coins: 0 }) => {
         player.move(MOVE_SPEED, 0);
     });
 
-    onKeyPress("f", () => {
-        setFullscreen(!isFullscreen());
-    });
 });
 
 scene("lose", () => {
