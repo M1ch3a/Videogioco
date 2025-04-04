@@ -62,6 +62,10 @@ scene("menu", () => {
     addButton("Start", vec2(centerX, centerY - 60), () => {
         go("game");
     });
+
+    add([
+        text("Copyright: Dall'Aglio Michea"),
+    ]);
 });
 
 
@@ -160,7 +164,7 @@ const levelConf = {
         "$": () => [
             sprite("coin"),
             area(),
-            pos(0, -9),
+            pos(0, -8),
             anchor("bot"),
             offscreen({ hide: true }),
             "coin",
@@ -215,7 +219,7 @@ scene("game", ({ levelId, coins } = { levelId: 0, coins: 0 }) => {
         sprite("Mario"),
         pos(0, 0),
         area(),
-        scale(1.3),
+        scale(1.2),
         body(),
         anchor("bot"),
     ]);
@@ -285,14 +289,21 @@ scene("game", ({ levelId, coins } = { levelId: 0, coins: 0 }) => {
         }
     }
 
-    onKeyPress("w", jump);
     onKeyPress("space", jump);
+    onKeyPress("w", jump);
+    onKeyPress("up", jump);
 
     onKeyDown("a", () => {
         player.move(-MOVE_SPEED, 0);
     });
+    onKeyDown("left", () => {
+        player.move(-MOVE_SPEED, 0);
+    });
 
     onKeyDown("d", () => {
+        player.move(MOVE_SPEED, 0);
+    });
+    onKeyDown("right", () => {
         player.move(MOVE_SPEED, 0);
     });
 
@@ -302,6 +313,8 @@ scene("lose", () => {
     add([
         text("You Lose"),
     ]);
+
+    onKeyPress(start);
 
     addButton("Restart", vec2(centerX, centerY), () => {
         go("game");
@@ -321,6 +334,9 @@ scene("win", () => {
 
 go("menu");
 
+function start(){
+    go("game")
+}
 
 </script>
 </body>
